@@ -1,0 +1,459 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Vendor {
+  id                String             @id
+  name              String
+  logoUrl           String?
+  websiteUrl        String?
+  displayOrder      Int                @default(0)
+  visible           Boolean            @default(true)
+  models            Model[]
+  apiOfferings      ApiOffering[]
+  subscriptionPlans SubscriptionPlan[]
+  dataSources       DataSource[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Model {
+  id              String             @id
+  vendorId        String
+  vendor          Vendor             @relation(fields: [vendorId], references: [id])
+  displayName     String
+  category        String
+  inputModes      Json?
+  outputModes     Json?
+  supportsReasoning Boolean @default(false)
+  contextSize     Int                @default(0)
+  openSource      String             @default("未知") // 开源 | 闭源 | 未披露
+  releaseDate     DateTime?
+  sourceUrl       String
+  description     String?
+  status          String             @default("active")
+  lastSyncedAt    DateTime?
+  latestUpdate    ModelUpdate?
+  capabilities    ModelCapability[]
+  apiRateCards    ApiRateCard[]
+  entitlements    SubscriptionEntitlement[]
+  benchmarkScores BenchmarkResult[]
+  evidences       FieldEvidence[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([vendorId])
+  @@index([status])
+}
+
+model ModelUpdate {
+  id         String   @id @default(cuid())
+  modelId    String   @unique
+  model      Model    @relation(fields: [modelId], references: [id])
+  title      String
+  feature    String
+  releasedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ModelCapability {
+  id          String   @id @default(cuid())
+  modelId     String
+  model       Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  capability  String
+  level       Int      @default(1)
+  evidenceUrl String?
+  sourceType  String   @default("official")
+  verifiedAt  DateTime?
+
+  @@unique([modelId, capability])
+}
+
+model DataSource {
+  id          String           @id @default(cuid())
+  vendorId    String?
+  vendor      Vendor?          @relation(fields: [vendorId], references: [id])
+  name        String
+  kind        String           // official_api | official_document | aggregator | benchmark
+  url         String
+  parserKey   String
+  active      Boolean          @default(true)
+  snapshots   SourceSnapshot[]
+  evidences   FieldEvidence[]
+  syncLogs    SyncLog[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([url])
+  @@index([vendorId, kind])
+}
+
+model SourceSnapshot {
+  id           String     @id @default(cuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  contentHash  String
+  fetchedAt    DateTime   @default(now())
+  httpStatus   Int?
+  status       String     // success | api_error | parse_error
+  payload      Json?
+
+  @@index([dataSourceId, fetchedAt])
+}
+
+model FieldEvidence {
+  id           String     @id @default(cuid())
+  modelId      String
+  model        Model      @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id])
+  field        String
+  value        Json?
+  verifiedAt   DateTime   @default(now())
+
+  @@index([modelId, field])
+}
+
+model ApiOffering {
+  id        String        @id @default(cuid())
+  vendorId  String
+  vendor    Vendor        @relation(fields: [vendorId], references: [id])
+  name      String
+  channel   String        // direct | aggregator
+  baseUrl   String?
+  sourceUrl String
+  rateCards ApiRateCard[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([vendorId, name, channel])
+}
+
+model ApiRateCard {
+  id            String        @id @default(cuid())
+  modelId       String
+  model         Model         @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  apiOfferingId String
+  apiOffering   ApiOffering   @relation(fields: [apiOfferingId], references: [id], onDelete: Cascade)
+  currency      String
+  effectiveFrom DateTime      @default(now())
+  effectiveTo   DateTime?
+  sourceUrl     String
+  verifiedAt    DateTime      @default(now())
+  status        String        @default("active")
+  items         ApiRateItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([modelId, status])
+  @@index([apiOfferingId, status])
+}
+
+model ApiRateItem {
+  id          String      @id @default(cuid())
+  rateCardId  String
+  rateCard    ApiRateCard @relation(fields: [rateCardId], references: [id], onDelete: Cascade)
+  metric      String      // input_tokens | output_tokens | cache_read | cache_write | request | image
+  unit        String      // per_million_tokens | per_request | per_image
+  amount      Decimal     @db.Decimal(18, 8)
+  conditions  Json?
+  displayName String?
+
+  @@unique([rateCardId, metric, unit])
+}
+
+model SubscriptionPlan {
+  id            String                    @id @default(cuid())
+  vendorId      String
+  vendor        Vendor                    @relation(fields: [vendorId], references: [id])
+  name          String
+  billingPeriod String                    // monthly | annual
+  currency      String
+  amount        Decimal                   @db.Decimal(18, 2)
+  region        String?
+  benefits      Json?
+  sourceUrl     String
+  verifiedAt    DateTime                  @default(now())
+  status        String                    @default("active")
+  entitlements  SubscriptionEntitlement[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@unique([vendorId, name, billingPeriod, currency, region])
+}
+
+model SubscriptionEntitlement {
+  id                 String           @id @default(cuid())
+  subscriptionPlanId String
+  subscriptionPlan   SubscriptionPlan @relation(fields: [subscriptionPlanId], references: [id], onDelete: Cascade)
+  modelId            String
+  model              Model            @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  accessLevel        String           @default("included")
+
+  @@unique([subscriptionPlanId, modelId])
+}
+
+model Benchmark {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  name        String
+  provider    String
+  sourceUrl   String
+  description String?
+  runs        BenchmarkRun[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model BenchmarkRun {
+  id          String            @id @default(cuid())
+  benchmarkId String
+  benchmark   Benchmark         @relation(fields: [benchmarkId], references: [id], onDelete: Cascade)
+  category    String
+  evaluatedAt DateTime
+  sourceUrl   String
+  verifiedAt  DateTime          @default(now())
+  results     BenchmarkResult[]
+  createdAt   DateTime          @default(now())
+
+  @@unique([benchmarkId, category, evaluatedAt])
+}
+
+model BenchmarkResult {
+  id              String       @id @default(cuid())
+  benchmarkRunId  String
+  benchmarkRun    BenchmarkRun @relation(fields: [benchmarkRunId], references: [id], onDelete: Cascade)
+  modelId         String
+  model           Model        @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  rank            Int?
+  totalScore      Decimal?     @db.Decimal(8, 3)
+  dimensionScores Json?
+  sourceUrl       String
+
+  @@unique([benchmarkRunId, modelId])
+  @@index([modelId])
+}
+
+model SyncLog {
+  id           String      @id @default(cuid())
+  dataSourceId String?
+  dataSource   DataSource? @relation(fields: [dataSourceId], references: [id])
+  vendorId     String?
+  syncType     String
+  syncStatus   String
+  httpStatus   Int?
+  errorMessage String?
+  details      Json?
+  createdAt    DateTime    @default(now())
+
+  @@index([syncType, createdAt])
+}
+
+model User {
+  id              String        @id @default(cuid())
+  inviteCodeHash  String        @unique
+  inviteCodeLabel String?
+  role            String        @default("user")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  sessions        UserSession[]
+  recommendationRuns UserRecommendationRun[]
+  feedback        UserFeedback[]
+  scoreRuns       EvaluationScoreRun[]
+  evaluationRuns  EvaluationRun[]
+  evaluationUsage EvaluationUsage[]
+  whitelist       FreeUserWhitelist?
+}
+
+model InviteCode {
+  id          String   @id @default(cuid())
+  codeHash    String   @unique
+  codeHint    String
+  role        String   @default("user")
+  neverExpires Boolean  @default(false)
+  firstUsedAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model UserSession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String   @unique
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+model UserRecommendationRun {
+  id               String   @id @default(cuid())
+  recommendationId String   @unique @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payload          Json
+  feedback         UserFeedback[]
+  createdAt        DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model UserFeedback {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recommendationRunId String?
+  recommendationRun UserRecommendationRun? @relation(fields: [recommendationRunId], references: [id], onDelete: SetNull)
+  modelId     String?
+  action      String
+  helpful     Boolean?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model KnowledgeFragment {
+  id          String   @id @default(cuid())
+  sourceUrl   String
+  sourceTitle String
+  path        String?
+  content     String
+  status      String   @default("pending")
+  effectiveAt DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, updatedAt])
+}
+
+model FreeUserWhitelist {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+}
+
+model EvaluationPrompt {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  content   String
+  enabled   Boolean  @default(true)
+  sortOrder Int      @default(0)
+  assets    EvaluationImageAsset[]
+  runs      EvaluationRun[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, enabled, sortOrder])
+}
+
+model EvaluationImageAsset {
+  id        String   @id @default(cuid())
+  promptId  String
+  prompt    EvaluationPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  modelId   String
+  imageUrl  String
+  thumbnailUrl String?
+  createdAt DateTime @default(now())
+
+  @@unique([promptId, modelId])
+}
+
+model EvaluationRun {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  promptId    String
+  prompt      EvaluationPrompt @relation(fields: [promptId], references: [id])
+  promptText  String
+  modelAId    String
+  modelBId    String
+  results     EvaluationResult[]
+  scoreRuns   EvaluationScoreRun[]
+  judgment    EvaluationJudgment?
+  createdAt   DateTime @default(now())
+
+  @@index([type, promptId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model EvaluationResult {
+  id        String   @id @default(cuid())
+  runId     String
+  run       EvaluationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  modelId   String
+  content   String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+
+  @@unique([runId, modelId])
+}
+
+model EvaluationJudgment {
+  id        String   @id @default(cuid())
+  runId     String   @unique
+  run       EvaluationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  choice    String
+  createdAt DateTime @default(now())
+}
+
+model EvaluationUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  dateKey   String
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type, dateKey])
+}
+
+model EvaluationConfig {
+  id              String   @id @default("default")
+  textDailyLimit  Int      @default(30)
+  imageDailyLimit Int      @default(5)
+  updatedAt       DateTime @updatedAt
+}
+
+model EvaluationScoreRun {
+  id              String @id @default(cuid())
+  runId           String
+  run             EvaluationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inputHash       String
+  scene           String
+  modelVersion    String
+  rubricVersion   String
+  status          String @default("pending")
+  inputSnapshot   Json
+  result          Json?
+  budgetId        String
+  reservedCostUsd Decimal @db.Decimal(18, 10)
+  costUsd         Decimal? @db.Decimal(18, 10)
+  attempts        Int @default(0)
+  errorCode       String?
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([runId, inputHash, modelVersion, rubricVersion])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([budgetId])
+}

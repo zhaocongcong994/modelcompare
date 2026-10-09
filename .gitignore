@@ -1,0 +1,46 @@
+# Local secrets and deployment configuration. Keep the checked-in example only.
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Runtime/build artifacts
+server/backups/
+server/data/evaluation-assets/
+.runtime/
+.firecrawl/
+**/node_modules/
+**/.next/
+server/.venv-rag/
+server/vendor/
+screenshots/
+效果图示例/
+draft_*/
+*.log
+.DS_Store
+
+# Deployment configuration and docs (not part of the public code repo)
+.dockerignore
+docker-compose.yml
+deploy/
+Dockerfile
+Dockerfile.*
+design/
+server/rag-knowledge.json
+server/prompts/evaluation-prompts-export.md
+web/AGENTS.md
+web/CLAUDE.md
+ModelCompare 项目架构分析.md
+技术开发文档.md
+开发记录*.md
+开发计划.md
+迭代方向.md
+场景与提示词扩充草案.md
+部署核验*.md
+validation/
+*.png
+!prototype/assets/*.png
+!web/app/**/*.png
+jev-g5-*.png

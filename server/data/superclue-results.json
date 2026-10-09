@@ -1,0 +1,29 @@
+{
+  "runs": [
+    {
+      "category": "SuperCLUE VLM 多模态视觉语言模型评测",
+      "evaluatedAt": "2026-07-01T00:00:00.000Z",
+      "sourceUrl": "https://www.superclueai.com/multimodal/VLM",
+      "results": [
+        {
+          "modelId": "stepfun/step-3.7-flash",
+          "rank": 6,
+          "totalScore": 65.35,
+          "dimensionScores": { "基础认知能力": 69.69, "视觉推理能力": 71.76, "视觉应用能力": 54.61 }
+        },
+        {
+          "modelId": "minimax/minimax-m3",
+          "rank": 7,
+          "totalScore": 62.89,
+          "dimensionScores": { "基础认知能力": 64.32, "视觉推理能力": 69.68, "视觉应用能力": 54.67 }
+        },
+        {
+          "modelId": "xiaomi/mimo-v2.5",
+          "rank": 8,
+          "totalScore": 60.93,
+          "dimensionScores": { "基础认知能力": 65.45, "视觉推理能力": 62.50, "视觉应用能力": 54.83 }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+import assert from 'node:assert/strict';
+import { chromium } from 'playwright';
+import { mkdir } from 'node:fs/promises';
+const base='http://127.0.0.1:3000';
+const publicModels=(await(await fetch(`${base}/api/models?limit=1000`)).json()).data;
+const picks=publicModels.filter(m=>/^minimax\/minimax-m(?:2\.5|2\.7|3)$/.test(m.id)).slice(0,2);
+assert.equal(picks.length,2);
+const prompt={id:'fixture-product',type:'text',title:'产品功能说明',content:'介绍一个网页项目管理工具。'};
+let recCount=0, requests=[], scoreStarted=false;
+const snapshot={recommendationId:'fixture-rec',schemaVersion:2,generatedAt:new Date().toISOString(),criteriaVersion:'rules-fixture',inputSnapshot:{query:prompt.content,requirements:{budgetCurrency:'CNY',billing:'per_token',scene:'product',workload:{inputTokens:1000,outputTokens:1000,cacheRatio:0,dailyRequests:1,daysPerMonth:30}},preferences:{cost:.5,context:.25,quality:.25},limit:2},requestedWeights:{cost:.5,context:.25,quality:.25},effectiveWeights:{cost:.5,context:.25,quality:0},omittedDimensions:[{dimension:'quality',reason:'缺少共同质量证据'}],comparisonGroup:{billing:'per_token',currency:'CNY'},catalogSnapshot:{source:'fixture',fetchedAt:'2026-10-08'},rag:{provider:'lexical',explanation:{status:'template'}},excluded:[],items:picks.map((model,i)=>({model,rank:i+1,score:i?0:100,scoreBreakdown:{cost:i?0:1,context:i?0:1,quality:null},costEstimate:{currency:'CNY',billing:'per_token',monthly:.2,perRequest:.01,workload:{inputTokens:1000,outputTokens:1000,cacheRatio:0,dailyRequests:1,daysPerMonth:30},rates:[{amount:1,currency:'CNY',metric:'input_tokens',unit:'per_million_tokens',channel:'fixture',verifiedAt:'2026-10-08'}]},reasons:['规则成本'],tradeoffs:['质量未评分'],evidence:[]}))};
+const run={id:'fixture-eval',type:'text',promptText:prompt.content,prompt,modelAId:picks[0].id,modelBId:picks[1].id,results:picks.map(m=>({modelId:m.id,content:'固定测试答案'})),judgment:{choice:'both_good'}};
+const job={id:'fixture-job',runId:run.id,status:'succeeded',modelVersion:'jev-1.13.0',rubricVersion:'zh-text-fixture',costUsd:.0000042,result:{decision:'a',results:{a:{score:100,dimensions:[]},b:{score:0,dimensions:[]}}}};
+const browser=await chromium.launch({headless:true});
+try{
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>sessionStorage.setItem('mc_invite_code','frontend-fixture'));
+ await page.route('**/api/**',async(route)=>{
+  const req=route.request(),url=new URL(req.url()),path=url.pathname.replace(/^\/api/,'');let data;
+  if(path==='/auth/me')data={authenticated:true,role:'user'};
+  else if(path==='/evaluations/prompts')data={prompts:[prompt],availability:{minimax:{available:true},deepseek:{available:true},doubao:{available:true}}};
+  else if(path==='/recommendations'&&req.method()==='POST'){recCount++;requests.push(req.postDataJSON());data={...snapshot,recommendationId:`fixture-rec-${recCount}`};}
+  else if(path==='/recommendations')data={runs:[{recommendationId:snapshot.recommendationId,createdAt:snapshot.generatedAt,query:prompt.content,items:snapshot.items.map(i=>({id:i.model.id,name:i.model.displayName,score:i.score}))}],total:1,limit:10,offset:0};
+  else if(path===`/recommendations/${snapshot.recommendationId}`)data=snapshot;
+  else if(path==='/evaluations/history')data={runs:[run]};
+  else if(path==='/evaluations/score-config')data={mode:'visible',enabled:true,rankingEnabled:false};
+  else if(path===`/evaluations/${run.id}/score`){if(req.method()==='POST'){scoreStarted=true;data=job;}else data={jobs:scoreStarted?[job]:[]};}
+  else if(path==='/auth/logout')return route.fulfill({status:204});
+  else return route.continue();
+  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({data})});
+ });
+ await page.goto(`${base}/modelcompare`,{waitUntil:'networkidle'});
+ await page.locator('#recommendTab').click();await page.locator('#recommendPrompt').selectOption(prompt.id);
+ await page.locator('#advancedParametersToggle').click();await page.locator('#recommendBudgetCurrency').selectOption('CNY');
+ await page.locator('#recommendSubmit').click();await page.locator('#rerunRecommendation').waitFor({state:'attached'});
+ assert.equal(requests[0].requirements.budgetCurrency,'CNY');assert.equal(requests[0].requirements.billing,'per_token');
+ assert.ok((await page.locator('#recommendationResults').textContent()).includes('¥0.20'));
+ await page.locator('.recommendation-snapshot summary').click();assert.ok((await page.locator('.recommendation-snapshot').textContent()).includes('质量 0%'));
+ await page.locator('#rerunRecommendation').click();assert.equal(recCount,2);
+ const historyButton=page.locator('#recommendationHistoryButton'),historyPanel=page.locator('#recommendationHistory');
+ assert.equal(await historyButton.textContent(),'查看我的选型记录');
+ assert.equal(await historyButton.getAttribute('aria-expanded'),'false');
+ await historyButton.click();await page.locator('[data-view-recommendation]').waitFor();
+ assert.equal(await historyButton.textContent(),'收起我的选型记录');
+ assert.equal(await historyButton.getAttribute('aria-expanded'),'true');
+ await historyButton.click();assert.equal(await historyPanel.isVisible(),false);
+ assert.equal(await historyButton.textContent(),'查看我的选型记录');
+ assert.equal(await historyButton.getAttribute('aria-expanded'),'false');
+ await historyButton.click();await page.locator('[data-view-recommendation]').click();
+ assert.ok((await page.locator('#recommendationResults').textContent()).includes(prompt.content));
+ await mkdir('../.runtime/iteration-20261008',{recursive:true});await page.screenshot({path:'../.runtime/iteration-20261008/recommendation-ui.png',fullPage:false});
+ await page.locator('#evaluationTab').click();await page.locator('#evaluationScoreButton').waitFor();
+ await page.locator('#evaluationScoreButton').click();await page.locator('#scoreReference').fill('固定参考资料');await page.locator('#startScore').click();
+ await page.getByText('A 100.0 · B 0.0').waitFor();assert.ok((await page.locator('#evaluationScore').textContent()).includes('人工结论：都好'));
+ await page.locator('#viewScoreDetail').click();await page.locator('#scoreDetailModal.open').waitFor();
+ assert.ok((await page.locator('#scoreDetailBody').textContent()).includes('jev-1.13.0'));
+ await page.locator('#scoreDetailClose').click();
+ await page.screenshot({path:'../.runtime/iteration-20261008/evaluation-ui.png',fullPage:false});
+ assert.deepEqual(errors,[]);
+ console.log('PASS: currency payload/display, score metadata, snapshot/rerun/history, Jev text score form/presentation and separate human judgment; all private/mutation/provider flows mocked.');
+}finally{await browser.close();}

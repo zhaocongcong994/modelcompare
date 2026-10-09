@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>ModelCompare — AI 模型对比</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,100..1000&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=20260830-6" />
+</head>
+<body data-theme="light">
+  <div class="cloud-flow" aria-hidden="true"></div>
+  <main class="invite-gate" id="inviteGate" aria-labelledby="inviteGateTitle">
+    <section class="invite-gate-content">
+      <div class="invite-gate-brand" aria-hidden="true">
+        <span class="logo-mark">MC</span>
+      </div>
+      <h1 class="invite-gate-title" id="inviteGateTitle">ModelCompare</h1>
+      <form class="invite-gate-form" id="authForm">
+        <label class="sr-only" for="inviteCode">邀请码</label>
+        <input id="inviteCode" class="auth-invite-input" type="text" autocomplete="off" required aria-label="邀请码" placeholder="请输入邀请码" />
+        <button class="download-btn" id="loginSubmit" type="submit">进入</button>
+      </form>
+    </section>
+  </main>
+  <div class="app" hidden>
+    <header class="app-header">
+      <div class="logo">
+        <img class="logo-image" src="https://pub-f170a2592d2c4a1485466404c36807be.r2.dev/Tests/logoipsum-415.svg" alt="" />
+        <span class="logo-text">ModelCompare</span>
+      </div>
+      <div class="header-actions">
+        <button id="managementButton" class="auth-button" type="button" hidden>管理入口</button>
+        <button id="authButton" class="auth-button" type="button">登录</button>
+      </div>
+    </header>
+
+    <nav class="app-nav" aria-label="主要功能">
+      <button class="app-nav-btn active" id="compareTab" type="button">模型对比</button>
+      <button class="app-nav-btn" id="recommendTab" type="button">智能推荐</button>
+      <button class="app-nav-btn" id="evaluationTab" type="button">模型评测</button>
+    </nav>
+
+    <main class="app-main" id="main">
+      <section class="compare-page" id="comparePage">
+      <section class="hero">
+        <p class="hero-subtitle">选择 2–5 个模型，生成结构化对比</p>
+      </section>
+
+      <section class="selection-bar">
+        <div class="selected-chips" id="selectedChips"></div>
+        <div class="selection-action">
+          <button class="add-btn" id="addModelBtn">
+            <span class="add-btn-icon">+</span>
+            <span>选择模型</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="empty-state" id="emptyState">
+        <div class="empty-state-icon">◫</div>
+        <p>尚未选择模型</p>
+        <p class="empty-state-hint">至少选择 2 个模型开始对比</p>
+      </section>
+
+      <section class="comparison" id="comparison" aria-live="polite"></section>
+      </section>
+
+      <section class="recommend-page" id="recommendPage" hidden>
+        <section class="hero">
+          <h1 class="hero-title">智能推荐</h1>
+          <p class="hero-subtitle">按实时公开模型目录筛选；排名仅使用有来源的价格、上下文与能力元数据。</p>
+        </section>
+
+        <div class="recommend-workspace">
+        <div class="recommend-controls">
+        <form class="recommend-form" id="recommendForm">
+          <label class="form-label" for="recommendQuery">生成类型</label>
+          <select class="form-textarea task-scenario-select" id="recommendQuery" required aria-label="生成类型">
+            <option value="text">文本生成</option>
+            <option value="image">图片生成</option>
+            <option value="视频生成" disabled>视频生成（暂不支持）</option>
+          </select>
+          <label class="form-control">选择场景<select id="recommendPrompt" required></select></label>
+          <section class="prompt-preview" id="recommendPromptContext" aria-label="所选场景提示词" hidden>
+            <p class="prompt-scene-summary" id="recommendPromptSummary" aria-live="polite"></p>
+            <details class="prompt-preview-details" id="recommendPromptDetails">
+              <summary>查看完整提示词 <span class="prompt-length" id="recommendPromptLength"></span></summary>
+              <div class="prompt-preview-body" id="recommendPromptPreview" tabindex="0" role="region" aria-label="完整提示词"></div>
+            </details>
+          </section>
+
+          <div class="form-row">
+            <label class="form-control">部署方式
+              <select id="recommendDeployment">
+                <option value="either">不限</option>
+                <option value="api">API</option>
+                <option value="self_hosted">私有部署</option>
+              </select>
+            </label>
+            <label class="form-control">模态偏好<select id="recommendModality"><option value="either">不限</option><option value="单模态">单模态</option><option value="多模态">多模态</option></select></label>
+          </div>
+
+          <button class="advanced-parameters-toggle" id="advancedParametersToggle" type="button" aria-expanded="false" aria-controls="advancedParameters">专业参数设置</button>
+
+          <section class="advanced-parameters" id="advancedParameters" hidden>
+            <div class="form-row">
+              <label class="form-control">是否必须支持推理<select id="recommendReasoning"><option value="either">不限</option><option value="required">必须支持</option></select></label>
+              <label class="form-control">开源/闭源偏好<select id="recommendOpenSource"><option value="either">不限</option><option value="open">仅开源</option><option value="closed">仅闭源</option></select></label>
+            </div>
+            <div class="form-row">
+              <label class="form-control">最小上下文（tokens）<input id="recommendContext" type="number" min="0" max="10000000" step="1" placeholder="例如 128000" /></label>
+            </div>
+            <fieldset class="form-fieldset">
+              <legend>工作负载参数</legend>
+              <div class="form-row"><label class="form-control">每次输入 tokens<input id="recommendInputTokens" type="number" min="0" max="10000000" step="1" value="1000" required /></label><label class="form-control">每次输出 tokens<input id="recommendOutputTokens" type="number" min="0" max="10000000" step="1" value="500" required /></label></div>
+              <div class="form-row"><label class="form-control">缓存输入占比（%）<input id="recommendCacheRatio" type="number" min="0" max="100" step="0.01" value="0" required /></label><label class="form-control">每日请求数<input id="recommendDailyRequests" type="number" min="0" max="1000000000" step="1" value="100" required /></label></div>
+              <div class="form-row"><label class="form-control">每月天数<input id="recommendDaysPerMonth" type="number" min="1" max="31" step="1" value="30" required /></label><label class="form-control">最高月度预算<select id="recommendBudgetCurrency" aria-label="预算币种"><option value="USD">USD · 美元</option><option value="CNY">CNY · 人民币</option></select><input id="recommendBudget" type="number" min="0" step="0.01" placeholder="可选" /></label></div>
+            </fieldset>
+            <fieldset class="form-fieldset preference-fieldset">
+              <legend>排序偏好</legend>
+              <label class="range-control">成本 <output id="costWeightValue">50%</output><input id="costWeight" type="range" min="0" max="100" value="50" /></label>
+              <label class="range-control">上下文 <output id="contextWeightValue">25%</output><input id="contextWeight" type="range" min="0" max="100" value="25" /></label>
+              <label class="range-control">综合质量 <output id="qualityWeightValue">25%</output><input id="qualityWeight" type="range" min="0" max="100" value="25" /></label>
+            </fieldset>
+          </section>
+
+          <div class="recommend-form-footer">
+            <span class="result-limit-fixed">最多推荐 2 个模型</span>
+            <button class="recommend-submit" id="recommendSubmit" type="submit">开始推荐</button>
+          </div>
+        </form>
+        <p class="risk-disclaimer recommend-risk-disclaimer">推荐仅供决策参考，字段及价格以厂商官方页面实时信息为准。本阶段不会依据任务说明自动推断能力或放宽硬约束。</p>
+        </div>
+        <div class="recommend-history-group"><button class="comparison-share-btn" id="recommendationHistoryButton" type="button" aria-expanded="false" aria-controls="recommendationHistory">查看我的选型记录</button><section id="recommendationHistory" class="admin-list" hidden></section><section class="recommendation-results" id="recommendationResults" aria-live="polite"></section></div>
+        </div>
+      </section>
+
+      <section class="recommend-page evaluation-page" id="evaluationPage" hidden>
+        <form class="recommend-form evaluation-form" id="evaluationForm">
+          <label class="form-control">生成类型<select id="evaluationType"><option value="text">文本生成</option><option value="image">图片生成</option><option value="video" disabled>视频生成（暂不支持）</option><option value="voice" disabled>语音生成（暂不支持）</option></select></label>
+          <label class="form-control">选择场景<select id="evaluationPrompt" required></select></label>
+          <section class="prompt-preview" id="evaluationPromptContext" aria-label="所选场景提示词" hidden>
+            <p class="prompt-scene-summary" id="evaluationPromptSummary" aria-live="polite"></p>
+            <details class="prompt-preview-details" id="evaluationPromptDetails">
+              <summary>查看完整提示词 <span class="prompt-length" id="evaluationPromptLength"></span></summary>
+              <div class="prompt-preview-body" id="evaluationPromptPreview" tabindex="0" role="region" aria-label="完整提示词"></div>
+            </details>
+          </section>
+          <div class="form-row"><label class="form-control">模型 A<select id="evaluationModelA" required></select></label><label class="form-control">模型 B<select id="evaluationModelB" required></select></label></div>
+          <p class="limit-hint" id="evaluationAvailabilityHint" role="status" hidden></p>
+          <div class="evaluation-actions"><button class="recommend-submit" type="submit" id="evaluationSubmit">发起测评</button><button class="comparison-share-btn" type="button" id="evaluationScoreButton" hidden>Jev 评分</button><section id="evaluationScore" class="evaluation-score" aria-live="polite" hidden></section></div>
+        </form>
+        <section id="evaluationJudgment" class="evaluation-judgment" hidden><button data-judgment="a_better" type="button">← A 更好</button><button data-judgment="both_good" type="button">⇄ 都好</button><button data-judgment="both_bad" type="button">⊘ 都不好</button><button data-judgment="b_better" type="button">B 更好 →</button></section>
+        <section id="evaluationResults" class="evaluation-results" aria-live="polite"></section>
+      </section>
+
+      <section class="recommend-page admin-page" id="adminPage" hidden>
+        <section class="hero"><h1 class="hero-title">管理中心</h1></section>
+        <div class="admin-tabs" role="tablist" aria-label="管理功能">
+          <button id="adminKnowledgeTab" class="admin-tab active" type="button" role="tab" aria-selected="true" aria-controls="adminKnowledgePanel">知识库管理</button>
+          <button id="adminVendorsTab" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="adminVendorsPanel">厂商管理</button>
+          <button id="adminEvaluationPromptTab" class="admin-tab" type="button">提示词管理</button>
+          <button id="adminEvaluationQuotaTab" class="admin-tab" type="button">配额管理</button>
+          <button id="adminEvaluationResultsTab" class="admin-tab" type="button">对比结果</button>
+          <button id="adminFeedbackTab" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="adminFeedbackPanel">推荐反馈</button>
+        </div>
+        <section id="adminKnowledgePanel" class="admin-tab-panel" role="tabpanel" aria-labelledby="adminKnowledgeTab">
+        <div class="comparison-toolbar admin-section-toolbar"><h2>知识库来源</h2><button class="comparison-share-btn" id="knowledgeAddButton" type="button">新增</button></div>
+        <section id="knowledgeSourceList" class="admin-list" aria-live="polite"></section>
+        </section>
+        <section id="adminVendorsPanel" class="admin-tab-panel" role="tabpanel" aria-labelledby="adminVendorsTab" hidden><div class="comparison-toolbar admin-section-toolbar"><h2>厂商展示</h2></div><p class="limit-hint">按住左侧手柄或厂商名称拖动排序，触屏长按后拖动，修改后自动保存。展示的厂商在前，隐藏的厂商在后。</p><p id="vendorSortStatus" class="sr-only" role="status" aria-live="polite"></p><section id="adminVendorList" class="admin-list"></section></section>
+        <section id="adminEvaluationPromptPanel" class="admin-tab-panel" hidden>
+          <div class="prompt-management-layout">
+            <nav class="prompt-type-tabs" aria-label="提示词类型">
+              <button class="prompt-type-tab active" data-prompt-type="text" type="button">文本生成</button>
+              <button class="prompt-type-tab" data-prompt-type="image" type="button">图片生成</button>
+            </nav>
+            <div class="prompt-management-content">
+              <div class="comparison-toolbar admin-section-toolbar"><h2 id="adminPromptSectionTitle">文本生成提示词</h2></div>
+              <section id="adminEvaluationPromptList" class="admin-list"></section>
+            </div>
+          </div>
+        </section>
+        <section id="adminEvaluationQuotaPanel" class="admin-tab-panel" hidden>
+          <div class="comparison-toolbar admin-section-toolbar"><h2>评测配额</h2></div>
+          <p class="limit-hint">按邀请码分别统计文本和图片每日次数（北京时间），管理员不受限制。每次双模型评测计 1 次；已发起模型调用的失败请求也计入次数。</p>
+          <div class="form-row"><label class="form-control">文本每日次数<input id="textDailyLimit" type="number" min="0" /></label><label class="form-control">图片每日次数<input id="imageDailyLimit" type="number" min="0" /></label></div>
+          <div class="admin-save-row"><button class="comparison-share-btn" id="saveEvaluationConfig" type="button">保存配额</button></div>
+        </section>
+        <section id="adminEvaluationResultsPanel" class="admin-tab-panel" hidden><div class="admin-results-toolbar"><label class="form-control">邀请码筛选<select id="adminEvaluationInviteFilter"><option value="">全部邀请码</option></select></label><button class="comparison-share-btn" id="refreshEvaluationResults" type="button">刷新</button></div><section id="adminEvaluationResultsList" class="admin-list"></section></section>
+        <section id="adminFeedbackPanel" class="admin-tab-panel" role="tabpanel" aria-labelledby="adminFeedbackTab" hidden><div class="comparison-toolbar admin-section-toolbar"><button class="comparison-share-btn" id="refreshAdminData" type="button">刷新</button></div><section id="adminFeedbackList" class="admin-list"></section></section>
+      </section>
+    </main>
+
+    <!-- Model Selector Drawer -->
+    <div class="drawer-overlay" id="drawerOverlay"></div>
+    <div class="drawer" id="drawer">
+      <div class="drawer-header">
+        <h2>选择模型</h2>
+        <button class="drawer-close" id="drawerClose" aria-label="关闭">✕</button>
+      </div>
+      <div class="drawer-limit" id="drawerLimit">已选择 <span id="selectedCount">0</span>/5</div>
+      <div class="vendor-list" id="vendorList"></div>
+      <div class="model-list" id="modelList"></div>
+      <div class="drawer-footer">
+        <button class="done-btn" id="doneBtn" disabled>完成</button>
+      </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="share-overlay" id="shareOverlay"></div>
+    <div class="share-modal" id="shareModal">
+      <div class="share-modal-header">
+        <h3>分享图预览</h3>
+        <button class="share-modal-close" id="shareClose">✕</button>
+      </div>
+      <div class="share-size-tabs" id="shareSizeTabs">
+        <button data-size="9:16" class="active">9:16</button>
+        <button data-size="16:9">16:9</button>
+        <button data-size="3:4">3:4</button>
+        <button data-size="4:3">4:3</button>
+      </div>
+      <div class="share-preview-wrap">
+        <div id="sharePreview"></div>
+      </div>
+      <div class="share-actions">
+        <button class="download-btn" id="downloadBtn">下载图片</button>
+      </div>
+    </div>
+
+    <div class="share-overlay" id="feedbackOverlay"></div>
+    <section class="share-modal feedback-modal" id="feedbackModal" aria-labelledby="feedbackTitle">
+      <div class="share-modal-header"><h3 id="feedbackTitle">反馈原因</h3><button class="share-modal-close" id="feedbackClose" type="button">✕</button></div>
+      <form id="feedbackForm" class="recommend-form"><label class="form-control">告诉我们哪里不合适<textarea id="feedbackReason" maxlength="1000" placeholder="选填，最多 1000 字"></textarea></label><div class="share-actions auth-actions"><button class="comparison-share-btn" id="feedbackCancel" type="button">取消</button><button class="download-btn" type="submit">提交</button></div></form>
+    </section>
+
+    <div class="share-overlay" id="knowledgeAddOverlay"></div>
+    <section class="share-modal feedback-modal knowledge-add-modal" id="knowledgeAddModal" aria-labelledby="knowledgeAddTitle">
+      <div class="share-modal-header"><h3 id="knowledgeAddTitle">新增知识库来源</h3><button class="share-modal-close" id="knowledgeAddClose" type="button" aria-label="关闭">✕</button></div>
+      <form id="knowledgeIngestForm" class="recommend-form">
+        <label class="form-control">厂商名称<input id="knowledgeSourceVendor" maxlength="100" required placeholder="例如：Qwen" /></label>
+        <label class="form-control">标题<input id="knowledgeSourceTitle" maxlength="200" required placeholder="例如：模型定价说明" /></label>
+        <label class="form-control">URL<input id="knowledgeSourceUrl" type="url" required placeholder="https://example.com/docs" /></label>
+        <div class="share-actions auth-actions"><button class="comparison-share-btn" id="knowledgeAddCancel" type="button">取消</button><button class="download-btn" type="submit">新增</button></div>
+      </form>
+    </section>
+    <div class="share-overlay" id="promptEditOverlay"></div>
+    <section class="share-modal feedback-modal knowledge-add-modal" id="promptEditModal" aria-labelledby="promptEditTitle">
+      <div class="share-modal-header"><h3 id="promptEditTitle">编辑提示词</h3><button class="share-modal-close" id="promptEditClose" type="button" aria-label="关闭">✕</button></div>
+      <form id="promptEditForm" class="recommend-form">
+        <label class="form-control">类型<select id="promptEditType" required><option value="text">文本生成</option><option value="image">图片生成</option></select></label>
+        <label class="form-control">场景名称<input id="promptEditName" maxlength="100" required /></label>
+        <label class="form-control">提示词<textarea id="promptEditContent" maxlength="2000" required></textarea></label>
+        <div class="share-actions auth-actions"><button class="comparison-share-btn" id="promptEditCancel" type="button">取消</button><button class="download-btn" type="submit">保存修改</button></div>
+      </form>
+    </section>
+    <div class="share-overlay" id="recommendPickerOverlay"></div>
+    <section class="share-modal compact-modal" id="recommendPickerModal" aria-labelledby="recommendPickerTitle">
+      <div class="share-modal-header"><h3 id="recommendPickerTitle">选择加入对比的模型</h3><button class="share-modal-close" id="recommendPickerClose" type="button">✕</button></div>
+      <div class="picker-hint" id="recommendPickerHint"></div><div class="recommend-picker-list" id="recommendPickerList"></div>
+      <div class="share-actions auth-actions"><button class="comparison-share-btn" id="recommendPickerCancel" type="button">取消</button><button class="download-btn" id="recommendPickerConfirm" type="button">加入对比</button></div>
+    </section>
+    <div class="share-overlay" id="scoreRequestOverlay"></div>
+    <section class="share-modal score-request-modal" id="scoreRequestModal" aria-labelledby="scoreRequestTitle">
+      <div class="share-modal-header"><h3 id="scoreRequestTitle">请求 Jev 辅助评分</h3><button class="share-modal-close" id="scoreRequestClose" type="button" aria-label="关闭">✕</button></div>
+      <form id="scoreRequestForm" class="recommend-form">
+        <p class="score-scene-display">评分场景：<strong id="scoreSceneLabel"></strong></p>
+        <input type="hidden" id="scoreScene" />
+        <label class="form-control">必要参考资料<textarea id="scoreReference" maxlength="6000" placeholder="功能、限制或客服权限；留空仅依据任务内已给事实"></textarea></label>
+        <div class="share-actions auth-actions"><button class="comparison-share-btn" id="scoreRequestCancel" type="button">取消</button><button class="download-btn" type="submit" id="startScore">发起评分</button></div>
+      </form>
+    </section>
+    <div class="share-overlay" id="scoreDetailOverlay"></div>
+    <section class="share-modal score-modal" id="scoreDetailModal" aria-labelledby="scoreDetailTitle">
+      <div class="share-modal-header"><h3 id="scoreDetailTitle">评分详情</h3><button class="share-modal-close" id="scoreDetailClose" type="button" aria-label="关闭">✕</button></div>
+      <div id="scoreDetailBody" class="score-detail-body"></div>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <script src="api.js?v=20260830-1"></script>
+  <script src="app.js?v=20260830-1"></script>
+</body>
+</html>
