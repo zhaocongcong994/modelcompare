@@ -25,6 +25,7 @@ draft_*/
 .dockerignore
 docker-compose.yml
 deploy/
+scripts/
 Dockerfile
 Dockerfile.*
 design/
